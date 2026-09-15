@@ -1,161 +1,271 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Wrench, Users, ShoppingBag, MapPin, Camera, Package, 
-  Calendar, Shield, Search, Plus, Trash2, Lock, Unlock, 
-  LogOut, Phone, Edit, CheckCircle, AlertCircle, RefreshCw
+  Wrench, Users, Package, Shield, Search, Plus, Trash2, Lock, Unlock, 
+  LogOut, Phone, Edit, CheckCircle, Clock, MapPin, Camera, DollarSign,
+  TrendingUp, TrendingDown, AlertCircle, Calendar, FileText, ArrowRight, ChevronRight
 } from 'lucide-react';
 
-// Dữ liệu mẫu ban đầu
+// Dữ liệu ban đầu
 const INITIAL_KTVS = [
-  { id: 'ktv1', name: 'Nguyễn Văn Tuấn', username: 'ktv1', pass: '123', status: 'active', commission: 20 },
-  { id: 'ktv2', name: 'Lê Minh Nam', username: 'ktv2', pass: '123', status: 'active', commission: 25 },
+  { id: 'ktv1', name: 'Nguyễn Văn Tuấn', phone: '0901234567', username: 'ktv1', pass: '123', status: 'active', commission: 30, startDate: '2025-01-10' },
+  { id: 'ktv2', name: 'Lê Minh Nam', phone: '0908765432', username: 'ktv2', pass: '123', status: 'active', commission: 35, startDate: '2025-03-15' },
 ];
 
 const INITIAL_MATERIALS = [
-  { id: 'mat1', name: 'Capacitor (Tụ điện) 35uF', quantity: 15, importPrice: 45000 },
-  { id: 'mat2', name: 'Gas R32 (Bình 10kg)', quantity: 4, importPrice: 850000 },
+  { id: 'mat1', name: 'Capacitor 35uF (Tụ điện)', unit: 'Cái', importPrice: 45000, sellPrice: 90000, quantity: 15, minQuantity: 5 },
+  { id: 'mat2', name: 'Gas R32', unit: 'Kg', importPrice: 85000, sellPrice: 180000, quantity: 20, minQuantity: 5 },
+  { id: 'mat3', name: 'Ống đồng 10/6', unit: 'Mét', importPrice: 70000, sellPrice: 130000, quantity: 50, minQuantity: 10 },
 ];
 
-const INITIAL_CUSTOMERS = [
-  { id: 'c1', name: 'Nguyễn Văn A', phone: '0912345678', address: '123 Nguyễn Thị Minh Khai, Q1', repairs: ['Đơn QT-2026-001 (Vệ sinh & Bơm gas)'] },
-  { id: 'c2', name: 'Chị Mai', phone: '0987654321', address: '45/12 Lê Văn Sỹ, Q3', repairs: ['Đơn QT-2026-002 (Thay tụ tủ lạnh)'] }
+const INITIAL_ORDERS = [
+  {
+    id: 'QT-2026-001',
+    customerName: 'Nguyễn Văn A',
+    phone: '0912345678',
+    address: 'Cát Hưng, Phù Cát',
+    gps: '13.9854, 109.0432',
+    deviceType: 'Máy lạnh',
+    brand: 'Daikin',
+    model: 'FTKC35',
+    issue: 'Máy không lạnh, chớp đèn lỗi',
+    serviceTask: 'Vệ sinh & Thay tụ nạp gas',
+    appointmentDate: '2026-09-16 08:30',
+    ktvId: 'ktv1',
+    laborFee: 300000,
+    materialFee: 180000,
+    totalFee: 480000,
+    paid: 480000,
+    debt: 0,
+    status: 'Hoàn thành', // Đã nhận, Đang di chuyển, Đang sửa, Hoàn thành
+    usedMaterials: [{ id: 'mat1', name: 'Capacitor 35uF (Tụ điện)', qty: 1, price: 90000 }],
+    images: ['https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=300'],
+    note: 'Khách yêu cầu hóa năng lượng',
+    createdAt: '2026-09-15'
+  }
 ];
 
-const INITIAL_WARRANTIES = [
-  { id: 'w1', orderCode: 'QT-2026-001', customerName: 'Nguyễn Văn A', phone: '0912345678', device: 'Máy lạnh Daikin', repairDate: '2026-03-01', expiryDate: '2026-09-01', replacementPart: 'Tụ khởi động 35uF', note: 'Bảo hành chập cháy do linh kiện', status: 'Còn hạn' }
+const INITIAL_TRANSACTIONS = [
+  { id: 't1', date: '2026-09-15', type: 'Thu', category: 'Khách thanh toán', amount: 480000, orderId: 'QT-2026-001', note: 'Thanh toán đơn QT-2026-001' },
+  { id: 't2', date: '2026-09-14', type: 'Chi', category: 'Mua vật tư', amount: 500000, note: 'Nhập gas R32' }
 ];
 
 export default function App() {
-  // Quản lý State với LocalStorage
+  // State Storage
   const [ktvs, setKtvs] = useState(() => JSON.parse(localStorage.getItem('QT_KTVS')) || INITIAL_KTVS);
   const [materials, setMaterials] = useState(() => JSON.parse(localStorage.getItem('QT_MATERIALS')) || INITIAL_MATERIALS);
-  const [customers, setCustomers] = useState(() => JSON.parse(localStorage.getItem('QT_CUSTOMERS')) || INITIAL_CUSTOMERS);
-  const [warranties, setWarranties] = useState(() => JSON.parse(localStorage.getItem('QT_WARRANTIES')) || INITIAL_WARRANTIES);
+  const [orders, setOrders] = useState(() => JSON.parse(localStorage.getItem('QT_ORDERS')) || INITIAL_ORDERS);
+  const [transactions, setTransactions] = useState(() => JSON.parse(localStorage.getItem('QT_TRANSACTIONS')) || INITIAL_TRANSACTIONS);
 
+  // Auth State
   const [currentUser, setCurrentUser] = useState(null);
   const [loginUsername, setLoginUsername] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState('');
-  const [activeTab, setActiveTab] = useState('ktvs');
 
-  // Search States
-  const [customerSearch, setCustomerSearch] = useState('');
-  const [warrantySearch, setWarrantySearch] = useState('');
+  // Navigation & Search
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [searchPhone, setSearchPhone] = useState('');
+
+  // Modals
+  const [showOrderModal, setShowOrderModal] = useState(false);
+  const [showKtvModal, setShowKtvModal] = useState(false);
+  const [showMatModal, setShowMatModal] = useState(false);
+  const [showTxModal, setShowTxModal] = useState(false);
 
   // Form States
-  const [showKtvModal, setShowKtvModal] = useState(false);
   const [editingKtv, setEditingKtv] = useState(null);
-  const [ktvForm, setKtvForm] = useState({ name: '', username: '', pass: '', commission: 20 });
+  const [ktvForm, setKtvForm] = useState({ name: '', phone: '', username: '', pass: '', commission: 30, startDate: '' });
+  
+  const [orderForm, setOrderForm] = useState({
+    customerName: '', phone: '', address: '', gps: '', deviceType: 'Máy lạnh',
+    brand: '', model: '', issue: '', serviceTask: '', appointmentDate: '',
+    ktvId: '', laborFee: 0, materialFee: 0, paid: 0, note: ''
+  });
 
-  const [showMatModal, setShowMatModal] = useState(false);
-  const [matForm, setMatForm] = useState({ name: '', quantity: 0, importPrice: 0 });
+  const [matForm, setMatForm] = useState({ name: '', unit: 'Cái', importPrice: 0, sellPrice: 0, quantity: 0, minQuantity: 5 });
+  const [txForm, setTxForm] = useState({ type: 'Thu', category: 'Khách thanh toán', amount: 0, note: '' });
 
-  const [showWarrantyModal, setShowWarrantyModal] = useState(false);
-  const [warrantyForm, setWarrantyForm] = useState({ orderCode: '', customerName: '', phone: '', device: '', repairDate: '', expiryDate: '', replacementPart: '', note: '' });
+  // Dynamic KTV Selected Order for work execution
+  const [selectedOrderForKtv, setSelectedOrderForKtv] = useState(null);
+  const [selectedMaterial, setSelectedMaterial] = useState('');
+  const [matQty, setMatQty] = useState(1);
 
-  // Sync LocalStorage
+  // Synchronize LocalStorage
   useEffect(() => localStorage.setItem('QT_KTVS', JSON.stringify(ktvs)), [ktvs]);
   useEffect(() => localStorage.setItem('QT_MATERIALS', JSON.stringify(materials)), [materials]);
-  useEffect(() => localStorage.setItem('QT_CUSTOMERS', JSON.stringify(customers)), [customers]);
-  useEffect(() => localStorage.setItem('QT_WARRANTIES', JSON.stringify(warranties)), [warranties]);
+  useEffect(() => localStorage.setItem('QT_ORDERS', JSON.stringify(orders)), [orders]);
+  useEffect(() => localStorage.setItem('QT_TRANSACTIONS', JSON.stringify(transactions)), [transactions]);
 
-  // Login Handler
+  // Handle Login
   const handleLogin = (e) => {
     e.preventDefault();
     setLoginError('');
     if (loginUsername === 'admin' && loginPassword === '123') {
       setCurrentUser({ role: 'admin', name: 'Quản trị viên' });
-      setActiveTab('ktvs');
+      setActiveTab('dashboard');
       return;
     }
     const found = ktvs.find(k => k.username === loginUsername && k.pass === loginPassword);
     if (found) {
       if (found.status === 'locked') {
-        setLoginError('Tài khoản của bạn đã bị khóa!');
+        setLoginError('Tài khoản của bạn đã bị khóa bởi Admin!');
         return;
       }
       setCurrentUser({ role: 'ktv', ...found });
-      setActiveTab('orders');
+      setActiveTab('ktv_orders');
       return;
     }
-    setLoginError('Tài khoản hoặc mật khẩu không đúng!');
+    setLoginError('Tài khoản hoặc mật khẩu không chính xác!');
   };
 
-  // KTV Handlers
+  // Create Order (Admin)
+  const handleCreateOrder = (e) => {
+    e.preventDefault();
+    const labor = Number(orderForm.laborFee);
+    const mat = Number(orderForm.materialFee);
+    const total = labor + mat;
+    const paidVal = Number(orderForm.paid);
+
+    const newOrder = {
+      id: 'QT-2026-' + String(orders.length + 1).padStart(3, '0'),
+      ...orderForm,
+      laborFee: labor,
+      materialFee: mat,
+      totalFee: total,
+      paid: paidVal,
+      debt: total - paidVal,
+      status: 'Mới tạo',
+      usedMaterials: [],
+      images: [],
+      createdAt: new Date().toISOString().split('T')[0]
+    };
+
+    setOrders([newOrder, ...orders]);
+    setShowOrderModal(false);
+    setOrderForm({
+      customerName: '', phone: '', address: '', gps: '', deviceType: 'Máy lạnh',
+      brand: '', model: '', issue: '', serviceTask: '', appointmentDate: '',
+      ktvId: '', laborFee: 0, materialFee: 0, paid: 0, note: ''
+    });
+  };
+
+  // KTV Actions
+  const updateOrderStatus = (orderId, newStatus) => {
+    setOrders(orders.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
+    if (selectedOrderForKtv && selectedOrderForKtv.id === orderId) {
+      setSelectedOrderForKtv(prev => ({ ...prev, status: newStatus }));
+    }
+  };
+
+  const handleAddMaterialToOrder = (orderId) => {
+    if (!selectedMaterial) return;
+    const mat = materials.find(m => m.id === selectedMaterial);
+    if (!mat || mat.quantity < matQty) {
+      alert('Vật tư không đủ số lượng trong kho!');
+      return;
+    }
+
+    // Update Materials Stock
+    setMaterials(materials.map(m => m.id === mat.id ? { ...m, quantity: m.quantity - Number(matQty) } : m));
+
+    // Update Order
+    const addedItem = { id: mat.id, name: mat.name, qty: Number(matQty), price: mat.sellPrice };
+    setOrders(orders.map(o => {
+      if (o.id === orderId) {
+        const updatedUsed = [...o.usedMaterials, addedItem];
+        const newMatFee = updatedUsed.reduce((sum, item) => sum + (item.price * item.qty), 0);
+        const newTotal = o.laborFee + newMatFee;
+        return {
+          ...o,
+          usedMaterials: updatedUsed,
+          materialFee: newMatFee,
+          totalFee: newTotal,
+          debt: newTotal - o.paid
+        };
+      }
+      return o;
+    }));
+
+    if (selectedOrderForKtv && selectedOrderForKtv.id === orderId) {
+      const updatedUsed = [...selectedOrderForKtv.usedMaterials, addedItem];
+      const newMatFee = updatedUsed.reduce((sum, item) => sum + (item.price * item.qty), 0);
+      const newTotal = selectedOrderForKtv.laborFee + newMatFee;
+      setSelectedOrderForKtv({
+        ...selectedOrderForKtv,
+        usedMaterials: updatedUsed,
+        materialFee: newMatFee,
+        totalFee: newTotal,
+        debt: newTotal - selectedOrderForKtv.paid
+      });
+    }
+
+    setSelectedMaterial('');
+    setMatQty(1);
+  };
+
+  const handleCaptureGps = (orderId) => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition((pos) => {
+        const coords = `${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`;
+        setOrders(orders.map(o => o.id === orderId ? { ...o, gps: coords } : o));
+        if (selectedOrderForKtv) setSelectedOrderForKtv(prev => ({ ...prev, gps: coords }));
+        alert(`Đã lưu vị trí GPS thành công: ${coords}`);
+      }, () => alert('Không thể lấy vị trí. Vui lòng bật GPS trên thiết bị!'));
+    }
+  };
+
+  const handleAddImage = (orderId) => {
+    const dummyImages = [
+      'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=300',
+      'https://images.unsplash.com/photo-1581092335397-9583fe92d232?w=300'
+    ];
+    const randomImg = dummyImages[Math.floor(Math.random() * dummyImages.length)];
+    setOrders(orders.map(o => o.id === orderId ? { ...o, images: [...o.images, randomImg] } : o));
+    if (selectedOrderForKtv) setSelectedOrderForKtv(prev => ({ ...prev, images: [...prev.images, randomImg] }));
+  };
+
+  // KTV Account Handlers
   const handleSaveKtv = (e) => {
     e.preventDefault();
     if (editingKtv) {
       setKtvs(ktvs.map(k => k.id === editingKtv.id ? { ...k, ...ktvForm, commission: Number(ktvForm.commission) } : k));
     } else {
-      if (ktvs.some(k => k.username === ktvForm.username)) {
-        alert('Tên đăng nhập đã tồn tại!');
-        return;
-      }
       setKtvs([...ktvs, { id: 'ktv_' + Date.now(), ...ktvForm, commission: Number(ktvForm.commission), status: 'active' }]);
     }
     setShowKtvModal(false);
     setEditingKtv(null);
-    setKtvForm({ name: '', username: '', pass: '', commission: 20 });
+    setKtvForm({ name: '', phone: '', username: '', pass: '', commission: 30, startDate: '' });
   };
 
-  const handleDeleteKtv = (id) => {
-    if (window.confirm('Bạn có chắc muốn xóa KTV này?')) setKtvs(ktvs.filter(k => k.id !== id));
-  };
-
-  const handleToggleLockKtv = (id) => {
-    setKtvs(ktvs.map(k => k.id === id ? { ...k, status: k.status === 'active' ? 'locked' : 'active' } : k));
-  };
-
-  // Material Handlers
-  const handleSaveMaterial = (e) => {
-    e.preventDefault();
-    setMaterials([...materials, { id: 'mat_' + Date.now(), name: matForm.name, quantity: Number(matForm.quantity), importPrice: Number(matForm.importPrice) }]);
-    setShowMatModal(false);
-    setMatForm({ name: '', quantity: 0, importPrice: 0 });
-  };
-
-  const handleDeleteMaterial = (id) => {
-    if (window.confirm('Bạn có chắc muốn xóa vật tư này?')) setMaterials(materials.filter(m => m.id !== id));
-  };
-
-  const handleUpdateQty = (id, delta) => {
-    setMaterials(materials.map(m => m.id === id ? { ...m, quantity: Math.max(0, m.quantity + delta) } : m));
-  };
-
-  // Warranty Handlers
-  const handleSaveWarranty = (e) => {
-    e.preventDefault();
-    setWarranties([...warranties, { id: 'w_' + Date.now(), ...warrantyForm, status: 'Còn hạn' }]);
-    setShowWarrantyModal(false);
-    setWarrantyForm({ orderCode: '', customerName: '', phone: '', device: '', repairDate: '', expiryDate: '', replacementPart: '', note: '' });
-  };
-
-  const handleDeleteWarranty = (id) => {
-    if (window.confirm('Xóa thông tin bảo hành này?')) setWarranties(warranties.filter(w => w.id !== id));
-  };
+  // Calculations for Admin Dashboard
+  const totalRevenue = orders.reduce((sum, o) => sum + o.paid, 0);
+  const totalExpenses = transactions.filter(t => t.type === 'Chi').reduce((sum, t) => sum + t.amount, 0);
+  const totalDebt = orders.reduce((sum, o) => sum + o.debt, 0);
+  const totalProfit = totalRevenue - totalExpenses;
+  const activeKtvsCount = ktvs.filter(k => k.status === 'active').length;
 
   if (!currentUser) {
     return (
-      <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
-        <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
+        <div className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md">
           <div className="flex flex-col items-center mb-6">
             <div className="bg-blue-600 p-4 rounded-full text-white mb-3 shadow-lg">
-              <Wrench size={36} />
+              <Wrench size={38} />
             </div>
-            <h1 className="text-2xl font-bold text-slate-800">QUANG THẮNG SERVICE</h1>
-            <p className="text-sm text-slate-500">Hệ Thống Quản Lý Dịch Vụ Sửa Chữa</p>
+            <h1 className="text-2xl font-black text-slate-800 tracking-wide">QUANG THẮNG SERVICE</h1>
+            <p className="text-xs text-slate-500 font-medium">Hệ Thống Quản Lý Điện Lạnh Chuyên Nghiệp</p>
           </div>
           <form onSubmit={handleLogin} className="space-y-4">
-            {loginError && <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm">{loginError}</div>}
+            {loginError && <div className="bg-red-50 text-red-600 p-3 rounded-lg text-xs font-semibold">{loginError}</div>}
             <div>
-              <label className="block text-sm font-medium mb-1">Tài khoản</label>
-              <input type="text" required className="w-full p-2.5 border rounded-lg" value={loginUsername} onChange={e => setLoginUsername(e.target.value)} placeholder="admin hoặc ktv1..." />
+              <label className="block text-xs font-bold text-slate-700 mb-1">Tài khoản</label>
+              <input type="text" required className="w-full p-3 border rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500" value={loginUsername} onChange={e => setLoginUsername(e.target.value)} placeholder="admin hoặc ktv1..." />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Mật khẩu</label>
-              <input type="password" required className="w-full p-2.5 border rounded-lg" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} placeholder="Mặc định: 123" />
+              <label className="block text-xs font-bold text-slate-700 mb-1">Mật khẩu</label>
+              <input type="password" required className="w-full p-3 border rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} placeholder="Mật khẩu (mặc định 123)" />
             </div>
-            <button type="submit" className="w-full bg-blue-600 text-white py-2.5 rounded-lg font-bold shadow hover:bg-blue-700">Đăng Nhập</button>
+            <button type="submit" className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold text-sm shadow-lg hover:bg-blue-700 transition">ĐĂNG NHẬP HỆ THỐNG</button>
           </form>
         </div>
       </div>
@@ -163,118 +273,247 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
-      {/* Header */}
-      <header className="bg-blue-600 text-white px-4 py-3 shadow flex items-center justify-between">
+    <div className="min-h-screen bg-slate-100 flex flex-col font-sans">
+      {/* Top Navbar */}
+      <header className="bg-slate-900 text-white px-4 py-3 shadow-md flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Wrench size={24} />
-          <span className="font-bold text-lg">Quang Thắng Service</span>
+          <div className="bg-blue-600 p-1.5 rounded-lg text-white">
+            <Wrench size={20} />
+          </div>
+          <div>
+            <span className="font-extrabold text-base tracking-wide block">QUANG THẮNG SERVICE</span>
+            <span className="text-[10px] text-slate-400 block font-medium">ĐIỆN LẠNH PHÙ CÁT</span>
+          </div>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-xs bg-blue-700 px-3 py-1 rounded-full">{currentUser.role === 'admin' ? '🔑 Admin' : `👨‍🔧 ${currentUser.name}`}</span>
-          <button onClick={() => setCurrentUser(null)} className="hover:text-red-200"><LogOut size={20} /></button>
+          <span className={`text-xs px-3 py-1 rounded-full font-bold ${currentUser.role === 'admin' ? 'bg-amber-500 text-slate-900' : 'bg-blue-600 text-white'}`}>
+            {currentUser.role === 'admin' ? '👑 ADMIN' : `👨‍🔧 THỢ: ${currentUser.name}`}
+          </span>
+          <button onClick={() => { setCurrentUser(null); setSelectedOrderForKtv(null); }} className="hover:text-red-400 text-slate-400">
+            <LogOut size={20} />
+          </button>
         </div>
       </header>
 
-      {/* Navigation Tabs */}
-      <div className="bg-white border-b px-4 py-2 flex gap-2 overflow-x-auto">
-        {currentUser.role === 'admin' && (
-          <>
-            <button onClick={() => setActiveTab('ktvs')} className={`px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-1.5 ${activeTab === 'ktvs' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>
-              <Users size={16} /> Quản lý KTV
-            </button>
-            <button onClick={() => setActiveTab('materials')} className={`px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-1.5 ${activeTab === 'materials' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>
-              <Package size={16} /> Kho vật tư
-            </button>
-            <button onClick={() => setActiveTab('customers')} className={`px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-1.5 ${activeTab === 'customers' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>
-              <Search size={16} /> Khách hàng
-            </button>
-            <button onClick={() => setActiveTab('warranties')} className={`px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-1.5 ${activeTab === 'warranties' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>
-              <Shield size={16} /> Bảo hành
-            </button>
-          </>
-        )}
-      </div>
-
-      {/* Main Container */}
-      <div className="flex-1 p-4 max-w-6xl w-full mx-auto space-y-4">
-        
-        {/* TAB 1: QUẢN LÝ KTV */}
-        {activeTab === 'ktvs' && currentUser.role === 'admin' && (
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h2 className="text-xl font-bold text-slate-800">Danh sách Kỹ Thuật Viên</h2>
-              <button onClick={() => { setEditingKtv(null); setKtvForm({ name: '', username: '', pass: '', commission: 20 }); setShowKtvModal(true); }} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-1 shadow">
-                <Plus size={18} /> Thêm KTV
+      {/* Admin Navigation Bar */}
+      {currentUser.role === 'admin' && (
+        <div className="bg-white border-b px-4 py-2 flex gap-1 overflow-x-auto">
+          {[
+            { id: 'dashboard', label: 'Dashboard', icon: TrendingUp },
+            { id: 'orders', label: 'Đơn Hàng', icon: FileText },
+            { id: 'ktvs', label: 'Quản Lý Thợ', icon: Users },
+            { id: 'materials', label: 'Kho Vật Tư', icon: Package },
+            { id: 'customers', label: 'Khách Hàng', icon: Search },
+            { id: 'finance', label: 'Thu - Chi', icon: DollarSign },
+            { id: 'warranties', label: 'Bảo Hành', icon: Shield },
+          ].map(tab => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 whitespace-nowrap transition ${activeTab === tab.id ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'}`}
+              >
+                <Icon size={15} /> {tab.label}
               </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* MAIN CONTENT AREA */}
+      <div className="flex-1 p-4 max-w-7xl w-full mx-auto space-y-4">
+        
+        {/* ========================================================= */}
+        {/* ADMIN VIEW 1: DASHBOARD */}
+        {/* ========================================================= */}
+        {currentUser.role === 'admin' && activeTab === 'dashboard' && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+                <div className="flex justify-between items-center text-slate-500 text-xs font-bold mb-1">
+                  <span>DOANH THU</span>
+                  <TrendingUp className="text-green-500" size={16} />
+                </div>
+                <div className="text-xl font-black text-slate-800">{totalRevenue.toLocaleString()} đ</div>
+              </div>
+              <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+                <div className="flex justify-between items-center text-slate-500 text-xs font-bold mb-1">
+                  <span>CHI PHÍ</span>
+                  <TrendingDown className="text-red-500" size={16} />
+                </div>
+                <div className="text-xl font-black text-slate-800">{totalExpenses.toLocaleString()} đ</div>
+              </div>
+              <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+                <div className="flex justify-between items-center text-slate-500 text-xs font-bold mb-1">
+                  <span>LỢI NHUẬN</span>
+                  <DollarSign className="text-blue-500" size={16} />
+                </div>
+                <div className="text-xl font-black text-blue-600">{totalProfit.toLocaleString()} đ</div>
+              </div>
+              <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+                <div className="flex justify-between items-center text-slate-500 text-xs font-bold mb-1">
+                  <span>CÔNG NỢ CẦN THU</span>
+                  <AlertCircle className="text-amber-500" size={16} />
+                </div>
+                <div className="text-xl font-black text-amber-600">{totalDebt.toLocaleString()} đ</div>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {ktvs.map(k => (
-                <div key={k.id} className="bg-white p-4 rounded-xl shadow-sm border flex justify-between items-center">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-slate-800 text-base">{k.name}</span>
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${k.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                        {k.status === 'active' ? 'Hoạt động' : 'Đã khóa'}
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-500">Tài khoản: <span className="font-mono text-slate-700 font-bold">{k.username}</span> | Mật khẩu: <span className="font-mono text-slate-700 font-bold">{k.pass}</span></p>
-                    <p className="text-xs font-semibold text-blue-600">Hoa hồng: {k.commission}%</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => { setEditingKtv(k); setKtvForm({ name: k.name, username: k.username, pass: k.pass, commission: k.commission }); setShowKtvModal(true); }} className="p-2 border rounded-lg text-blue-600 hover:bg-blue-50" title="Chỉnh sửa % hoa hồng & thông tin">
-                      <Edit size={16} />
-                    </button>
-                    <button onClick={() => handleToggleLockKtv(k.id)} className={`p-2 border rounded-lg ${k.status === 'active' ? 'text-amber-600 hover:bg-amber-50' : 'text-green-600 hover:bg-green-50'}`} title={k.status === 'active' ? 'Khóa tài khoản' : 'Mở khóa'}>
-                      {k.status === 'active' ? <Lock size={16} /> : <Unlock size={16} />}
-                    </button>
-                    <button onClick={() => handleDeleteKtv(k.id)} className="p-2 border rounded-lg text-red-600 hover:bg-red-50" title="Xóa KTV">
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                </div>
-              ))}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-white p-4 rounded-2xl border space-y-2">
+                <span className="text-xs font-bold text-slate-500">TỔNG ĐƠN HÀNG</span>
+                <div className="text-2xl font-black text-slate-800">{orders.length} Đơn</div>
+              </div>
+              <div className="bg-white p-4 rounded-2xl border space-y-2">
+                <span className="text-xs font-bold text-slate-500">ĐƠN ĐANG XỬ LÝ</span>
+                <div className="text-2xl font-black text-amber-600">{orders.filter(o => o.status !== 'Hoàn thành').length} Đơn</div>
+              </div>
+              <div className="bg-white p-4 rounded-2xl border space-y-2">
+                <span className="text-xs font-bold text-slate-500">THỢ ĐANG HOẠT ĐỘNG</span>
+                <div className="text-2xl font-black text-green-600">{activeKtvsCount} Thợ</div>
+              </div>
             </div>
           </div>
         )}
 
-        {/* TAB 2: KHO VẬT TƯ */}
-        {activeTab === 'materials' && currentUser.role === 'admin' && (
+        {/* ========================================================= */}
+        {/* ADMIN VIEW 2: QUẢN LÝ ĐƠN HÀNG */}
+        {/* ========================================================= */}
+        {currentUser.role === 'admin' && activeTab === 'orders' && (
           <div className="space-y-4">
             <div className="flex justify-between items-center">
-              <h2 className="text-xl font-bold text-slate-800">Quản Lý Kho Vật Tư</h2>
-              <button onClick={() => setShowMatModal(true)} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-1 shadow">
-                <Plus size={18} /> Thêm vật tư
+              <h2 className="text-lg font-bold text-slate-800">Quản Lý Đơn Hàng Dịch Vụ</h2>
+              <button onClick={() => setShowOrderModal(true)} className="bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow">
+                <Plus size={16} /> Tạo Đơn Mới
               </button>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-              <table className="w-full text-left text-sm text-slate-600">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {orders.map(o => {
+                const assignedKtv = ktvs.find(k => k.id === o.ktvId);
+                return (
+                  <div key={o.id} className="bg-white p-4 rounded-2xl shadow-sm border space-y-3">
+                    <div className="flex justify-between items-start border-b pb-2">
+                      <div>
+                        <span className="font-mono font-bold text-blue-600 text-sm">{o.id}</span>
+                        <h3 className="font-bold text-slate-800 text-base">{o.customerName} - {o.phone}</h3>
+                      </div>
+                      <span className={`text-xs px-2.5 py-1 rounded-full font-bold ${o.status === 'Hoàn thành' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                        {o.status}
+                      </span>
+                    </div>
+
+                    <div className="text-xs space-y-1 text-slate-600">
+                      <p>📍 <strong>Địa chỉ:</strong> {o.address} {o.gps && <span className="text-blue-600 font-mono">({o.gps})</span>}</p>
+                      <p>🔧 <strong>Thiết bị:</strong> {o.deviceType} {o.brand} {o.model}</p>
+                      <p>⚠️ <strong>Tình trạng lỗi:</strong> {o.issue}</p>
+                      <p>👨‍🔧 <strong>Thợ phụ trách:</strong> <span className="font-bold text-slate-800">{assignedKtv ? assignedKtv.name : 'Chưa gán'}</span></p>
+                    </div>
+
+                    <div className="bg-slate-50 p-2.5 rounded-xl text-xs flex justify-between font-bold">
+                      <div>Tiền công: {o.laborFee.toLocaleString()} đ</div>
+                      <div>Vật tư: {o.materialFee.toLocaleString()} đ</div>
+                      <div className="text-blue-600">Tổng: {o.totalFee.toLocaleString()} đ</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================= */}
+        {/* ADMIN VIEW 3: QUẢN LÝ THỢ & HOA HỒNG */}
+        {/* ========================================================= */}
+        {currentUser.role === 'admin' && activeTab === 'ktvs' && (
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h2 className="text-lg font-bold text-slate-800">Danh Sách Kỹ Thuật Viên</h2>
+              <button onClick={() => { setEditingKtv(null); setKtvForm({ name: '', phone: '', username: '', pass: '', commission: 30, startDate: '' }); setShowKtvModal(true); }} className="bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1 shadow">
+                <Plus size={16} /> Thêm Thợ Mới
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {ktvs.map(k => {
+                const ktvOrders = orders.filter(o => o.ktvId === k.id && o.status === 'Hoàn thành');
+                const totalLabor = ktvOrders.reduce((sum, o) => sum + o.laborFee, 0);
+                const commissionEarnings = (totalLabor * k.commission) / 100;
+
+                return (
+                  <div key={k.id} className="bg-white p-4 rounded-2xl shadow-sm border space-y-3">
+                    <div className="flex justify-between items-center border-b pb-2">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-slate-800 text-base">{k.name}</span>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${k.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                            {k.status === 'active' ? 'Đang hoạt động' : 'Đã khóa'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500 font-mono">SĐT: {k.phone} | User: {k.username}</p>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => { setEditingKtv(k); setKtvForm(k); setShowKtvModal(true); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg">
+                          <Edit size={16} />
+                        </button>
+                        <button onClick={() => setKtvs(ktvs.map(item => item.id === k.id ? { ...item, status: item.status === 'active' ? 'locked' : 'active' } : item))} className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg">
+                          {k.status === 'active' ? <Lock size={16} /> : <Unlock size={16} />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="bg-blue-50 p-3 rounded-xl text-xs space-y-1">
+                      <div className="flex justify-between font-bold text-slate-700">
+                        <span>Tỷ lệ hoa hồng:</span>
+                        <span className="text-blue-600">{k.commission}%</span>
+                      </div>
+                      <div className="flex justify-between font-bold text-slate-700">
+                        <span>Tổng hoa hồng tạm tính:</span>
+                        <span className="text-green-600">{commissionEarnings.toLocaleString()} đ</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================= */}
+        {/* ADMIN VIEW 4: KHO VẬT TƯ */}
+        {/* ========================================================= */}
+        {currentUser.role === 'admin' && activeTab === 'materials' && (
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h2 className="text-lg font-bold text-slate-800">Kho Linh Kiện & Vật Tư</h2>
+              <button onClick={() => setShowMatModal(true)} className="bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1 shadow">
+                <Plus size={16} /> Thêm Vật Tư
+              </button>
+            </div>
+
+            <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
+              <table className="w-full text-left text-xs text-slate-600">
                 <thead className="bg-slate-100 text-slate-700 font-bold border-b">
                   <tr>
-                    <th className="p-3">Tên vật tư</th>
-                    <th className="p-3 text-center">Số lượng tồn</th>
+                    <th className="p-3">Tên linh kiện / Vật tư</th>
+                    <th className="p-3">Đơn vị</th>
                     <th className="p-3">Giá nhập</th>
-                    <th className="p-3 text-right">Thao tác</th>
+                    <th className="p-3">Giá bán</th>
+                    <th className="p-3 text-center">Tồn kho</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
                   {materials.map(m => (
                     <tr key={m.id} className="hover:bg-slate-50">
-                      <td className="p-3 font-semibold text-slate-800">{m.name}</td>
+                      <td className="p-3 font-bold text-slate-800">{m.name}</td>
+                      <td className="p-3">{m.unit}</td>
+                      <td className="p-3 font-mono">{m.importPrice.toLocaleString()} đ</td>
+                      <td className="p-3 font-mono text-blue-600 font-bold">{m.sellPrice.toLocaleString()} đ</td>
                       <td className="p-3 text-center">
-                        <div className="flex items-center justify-center gap-2">
-                          <button onClick={() => handleUpdateQty(m.id, -1)} className="w-6 h-6 border rounded bg-slate-100 font-bold flex items-center justify-center hover:bg-slate-200">-</button>
-                          <span className="font-bold text-slate-800 min-w-[20px]">{m.quantity}</span>
-                          <button onClick={() => handleUpdateQty(m.id, 1)} className="w-6 h-6 border rounded bg-slate-100 font-bold flex items-center justify-center hover:bg-slate-200">+</button>
-                        </div>
-                      </td>
-                      <td className="p-3 text-blue-600 font-semibold">{m.importPrice.toLocaleString()} đ</td>
-                      <td className="p-3 text-right">
-                        <button onClick={() => handleDeleteMaterial(m.id)} className="text-red-600 hover:bg-red-50 p-1 rounded">
-                          <Trash2 size={18} />
-                        </button>
+                        <span className={`px-2 py-1 rounded-full font-bold ${m.quantity <= m.minQuantity ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-800'}`}>
+                          {m.quantity}
+                        </span>
                       </td>
                     </tr>
                   ))}
@@ -284,193 +523,181 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 3: KHÁCH HÀNG */}
-        {activeTab === 'customers' && currentUser.role === 'admin' && (
+        {/* ========================================================= */}
+        {/* THỢ (KTV) VIEW: GIAO DIỆN CỦA THỢ */}
+        {/* ========================================================= */}
+        {currentUser.role === 'ktv' && (
           <div className="space-y-4">
-            <h2 className="text-xl font-bold text-slate-800">Danh Sách Khách Hàng</h2>
-            
-            <div className="relative">
-              <Search className="absolute left-3 top-3 text-slate-400" size={18} />
-              <input 
-                type="text" 
-                className="w-full pl-10 pr-4 py-2 border rounded-xl bg-white focus:ring-2 focus:ring-blue-500 outline-none" 
-                placeholder="Tìm kiếm theo Tên hoặc Số điện thoại khách hàng..." 
-                value={customerSearch}
-                onChange={e => setCustomerSearch(e.target.value)}
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {customers
-                .filter(c => c.name.toLowerCase().includes(customerSearch.toLowerCase()) || c.phone.includes(customerSearch))
-                .map(c => (
-                  <div key={c.id} className="bg-white p-4 rounded-xl shadow-sm border space-y-2">
-                    <div className="flex justify-between items-start">
-                      <h3 className="font-bold text-slate-800 text-base">{c.name}</h3>
-                      <span className="text-blue-600 font-bold text-sm flex items-center gap-1"><Phone size={14} /> {c.phone}</span>
+            {!selectedOrderForKtv ? (
+              <div className="space-y-4">
+                <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                  <FileText size={18} /> Đơn Hàng Được Giao Cho Bạn
+                </h2>
+                <div className="space-y-3">
+                  {orders.filter(o => o.ktvId === currentUser.id).map(o => (
+                    <div key={o.id} onClick={() => setSelectedOrderForKtv(o)} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 hover:border-blue-500 cursor-pointer transition space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="font-mono font-bold text-blue-600 text-xs">{o.id}</span>
+                        <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-amber-100 text-amber-700">{o.status}</span>
+                      </div>
+                      <h3 className="font-bold text-slate-800 text-sm">{o.customerName} - {o.phone}</h3>
+                      <p className="text-xs text-slate-600">📍 {o.address}</p>
+                      <p className="text-xs text-slate-500">🔧 {o.deviceType} ({o.issue})</p>
+                      <div className="flex justify-end text-xs font-bold text-blue-600 items-center gap-1">
+                        Chi tiết đơn <ArrowRight size={14} />
+                      </div>
                     </div>
-                    <p className="text-xs text-slate-500">{c.address}</p>
-                    <div className="border-t pt-2">
-                      <p className="text-xs font-bold text-slate-700 mb-1">Lịch sử sửa chữa:</p>
-                      {c.repairs.map((r, idx) => (
-                        <p key={idx} className="text-xs text-slate-600 bg-slate-50 p-1.5 rounded mb-1">• {r}</p>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4 bg-white p-5 rounded-2xl shadow-sm border">
+                <button onClick={() => setSelectedOrderForKtv(null)} className="text-xs font-bold text-slate-500 flex items-center gap-1 mb-2">
+                  ← Quay lại danh sách
+                </button>
+
+                <div className="border-b pb-3">
+                  <span className="font-mono font-bold text-blue-600 text-xs">{selectedOrderForKtv.id}</span>
+                  <h2 className="text-lg font-bold text-slate-800">{selectedOrderForKtv.customerName} - {selectedOrderForKtv.phone}</h2>
+                  <p className="text-xs text-slate-600 mt-1">📍 Địa chỉ: {selectedOrderForKtv.address}</p>
+                </div>
+
+                {/* Trạng thái công việc */}
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-700">CẬP NHẬT TRẠNG THÁI CÔNG VIỆC:</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {['Đã nhận đơn', 'Đang di chuyển', 'Đang sửa', 'Hoàn thành'].map(st => (
+                      <button
+                        key={st}
+                        onClick={() => updateOrderStatus(selectedOrderForKtv.id, st)}
+                        className={`p-2.5 rounded-xl text-xs font-bold transition border ${selectedOrderForKtv.status === st ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-50 text-slate-700 border-slate-200'}`}
+                      >
+                        {st}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Thao tác vị trí & hình ảnh */}
+                <div className="grid grid-cols-2 gap-2 pt-2">
+                  <button onClick={() => handleCaptureGps(selectedOrderForKtv.id)} className="p-3 bg-slate-100 text-slate-800 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 border">
+                    <MapPin size={16} className="text-red-500" /> Ghim Vị Trí GPS
+                  </button>
+                  <button onClick={() => handleAddImage(selectedOrderForKtv.id)} className="p-3 bg-slate-100 text-slate-800 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 border">
+                    <Camera size={16} className="text-blue-500" /> Chụp Ảnh Nghiệm Thu
+                  </button>
+                </div>
+
+                {/* Danh sách ảnh */}
+                {selectedOrderForKtv.images.length > 0 && (
+                  <div className="flex gap-2 overflow-x-auto pt-2">
+                    {selectedOrderForKtv.images.map((img, idx) => (
+                      <img key={idx} src={img} alt="Nghiệm thu" className="w-20 h-20 object-cover rounded-xl border" />
+                    ))}
+                  </div>
+                )}
+
+                {/* Trừ kho vật tư */}
+                <div className="border-t pt-3 space-y-2">
+                  <label className="text-xs font-bold text-slate-700">SỬ DỤNG VẬT TƯ TRONG KHO:</label>
+                  <div className="flex gap-2">
+                    <select className="flex-1 p-2 border rounded-xl text-xs" value={selectedMaterial} onChange={e => setSelectedMaterial(e.target.value)}>
+                      <option value="">-- Chọn vật tư --</option>
+                      {materials.map(m => (
+                        <option key={m.id} value={m.id}>{m.name} (Tồn: {m.quantity})</option>
+                      ))}
+                    </select>
+                    <input type="number" min="1" className="w-16 p-2 border rounded-xl text-xs text-center" value={matQty} onChange={e => setMatQty(e.target.value)} />
+                    <button onClick={() => handleAddMaterialToOrder(selectedOrderForKtv.id)} className="bg-blue-600 text-white px-3 py-2 rounded-xl text-xs font-bold">Thêm</button>
+                  </div>
+
+                  {/* Danh sách vật tư đã dùng */}
+                  {selectedOrderForKtv.usedMaterials.length > 0 && (
+                    <div className="bg-slate-50 p-2.5 rounded-xl text-xs space-y-1 border">
+                      <p className="font-bold text-slate-700">Vật tư đã chọn dùng:</p>
+                      {selectedOrderForKtv.usedMaterials.map((um, idx) => (
+                        <div key={idx} className="flex justify-between text-slate-600">
+                          <span>• {um.name} (x{um.qty})</span>
+                          <span className="font-mono">{(um.price * um.qty).toLocaleString()} đ</span>
+                        </div>
                       ))}
                     </div>
-                  </div>
-                ))}
-            </div>
-          </div>
-        )}
-
-        {/* TAB 4: BẢO HÀNH */}
-        {activeTab === 'warranties' && currentUser.role === 'admin' && (
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h2 className="text-xl font-bold text-slate-800">Quản Lý Bảo Hành</h2>
-              <button onClick={() => setShowWarrantyModal(true)} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-1 shadow">
-                <Plus size={18} /> Thêm Bảo Hành
-              </button>
-            </div>
-
-            <div className="relative">
-              <Search className="absolute left-3 top-3 text-slate-400" size={18} />
-              <input 
-                type="text" 
-                className="w-full pl-10 pr-4 py-2 border rounded-xl bg-white focus:ring-2 focus:ring-blue-500 outline-none" 
-                placeholder="Tìm kiếm theo Số điện thoại khách hàng..." 
-                value={warrantySearch}
-                onChange={e => setWarrantySearch(e.target.value)}
-              />
-            </div>
-
-            <div className="bg-white rounded-xl shadow-sm border overflow-x-auto">
-              <table className="w-full text-left text-xs text-slate-600">
-                <thead className="bg-slate-100 text-slate-700 font-bold border-b">
-                  <tr>
-                    <th className="p-3">Mã đơn</th>
-                    <th className="p-3">Khách hàng</th>
-                    <th className="p-3">SĐT Khách</th>
-                    <th className="p-3">Thiết bị</th>
-                    <th className="p-3">Linh kiện thay thế</th>
-                    <th className="p-3">Thời hạn</th>
-                    <th className="p-3">Ghi chú</th>
-                    <th className="p-3 text-right">Xóa</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {warranties
-                    .filter(w => w.phone.includes(warrantySearch))
-                    .map(w => (
-                      <tr key={w.id} className="hover:bg-slate-50">
-                        <td className="p-3 font-mono font-bold text-slate-800">{w.orderCode}</td>
-                        <td className="p-3 font-semibold text-slate-800">{w.customerName}</td>
-                        <td className="p-3 text-blue-600 font-bold">{w.phone}</td>
-                        <td className="p-3">{w.device}</td>
-                        <td className="p-3 text-amber-700 font-semibold">{w.replacementPart}</td>
-                        <td className="p-3">{w.repairDate} ➔ <span className="text-red-600 font-bold">{w.expiryDate}</span></td>
-                        <td className="p-3 text-slate-500">{w.note}</td>
-                        <td className="p-3 text-right">
-                          <button onClick={() => handleDeleteWarranty(w.id)} className="text-red-600 hover:bg-red-50 p-1 rounded">
-                            <Trash2 size={16} />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
-            </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
       </div>
 
-      {/* MODAL KTV */}
+      {/* MODAL TẠO ĐƠN HÀNG (ADMIN) */}
+      {showOrderModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-base font-bold text-slate-800">Tạo Đơn Hàng Sửa Chữa Mới</h3>
+            <form onSubmit={handleCreateOrder} className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <input type="text" required placeholder="Tên khách hàng" className="p-2.5 border rounded-xl text-xs" value={orderForm.customerName} onChange={e => setOrderForm({...orderForm, customerName: e.target.value})} />
+                <input type="text" required placeholder="Số điện thoại" className="p-2.5 border rounded-xl text-xs" value={orderForm.phone} onChange={e => setOrderForm({...orderForm, phone: e.target.value})} />
+              </div>
+              <input type="text" required placeholder="Địa chỉ nhà khách" className="w-full p-2.5 border rounded-xl text-xs" value={orderForm.address} onChange={e => setOrderForm({...orderForm, address: e.target.value})} />
+              
+              <div className="grid grid-cols-2 gap-2">
+                <select className="p-2.5 border rounded-xl text-xs" value={orderForm.deviceType} onChange={e => setOrderForm({...orderForm, deviceType: e.target.value})}>
+                  <option value="Máy lạnh">Máy lạnh</option>
+                  <option value="Máy giặt">Máy giặt</option>
+                  <option value="Tủ lạnh">Tủ lạnh</option>
+                  <option value="Tủ mát">Tủ mát</option>
+                </select>
+                <input type="text" placeholder="Hãng (Daikin, LG...)" className="p-2.5 border rounded-xl text-xs" value={orderForm.brand} onChange={e => setOrderForm({...orderForm, brand: e.target.value})} />
+              </div>
+
+              <textarea placeholder="Mô tả lỗi thiết bị..." className="w-full p-2.5 border rounded-xl text-xs" value={orderForm.issue} onChange={e => setOrderForm({...orderForm, issue: e.target.value})} />
+              <input type="text" placeholder="Nội dung công việc cần làm" className="w-full p-2.5 border rounded-xl text-xs" value={orderForm.serviceTask} onChange={e => setOrderForm({...orderForm, serviceTask: e.target.value})} />
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] text-slate-500 font-bold block mb-0.5">Phân công thợ</label>
+                  <select className="w-full p-2.5 border rounded-xl text-xs" value={orderForm.ktvId} onChange={e => setOrderForm({...orderForm, ktvId: e.target.value})}>
+                    <option value="">-- Chọn thợ --</option>
+                    {ktvs.map(k => <option key={k.id} value={k.id}>{k.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] text-slate-500 font-bold block mb-0.5">Tiền công (VNĐ)</label>
+                  <input type="number" className="w-full p-2.5 border rounded-xl text-xs" value={orderForm.laborFee} onChange={e => setOrderForm({...orderForm, laborFee: e.target.value})} />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t">
+                <button type="button" onClick={() => setShowOrderModal(false)} className="px-4 py-2 border rounded-xl text-xs font-bold">Hủy</button>
+                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold">Lưu Đơn Hàng</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL QUẢN LÝ THỢ (ADMIN) */}
       {showKtvModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <h3 className="text-lg font-bold">{editingKtv ? 'Chỉnh Sửa KTV' : 'Thêm KTV Mới'}</h3>
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <h3 className="text-base font-bold text-slate-800">{editingKtv ? 'Chỉnh Sửa Thông Tin Thợ' : 'Thêm Thợ Mới'}</h3>
             <form onSubmit={handleSaveKtv} className="space-y-3">
-              <div>
-                <label className="block text-xs font-semibold mb-1">Tên KTV</label>
-                <input type="text" required className="w-full p-2 border rounded-lg text-sm" value={ktvForm.name} onChange={e => setKtvForm({...ktvForm, name: e.target.value})} placeholder="Nguyễn Văn B" />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold mb-1">Tài khoản đăng nhập</label>
-                <input type="text" required disabled={!!editingKtv} className="w-full p-2 border rounded-lg text-sm" value={ktvForm.username} onChange={e => setKtvForm({...ktvForm, username: e.target.value})} placeholder="ktv2" />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold mb-1">Mật khẩu</label>
-                <input type="text" required className="w-full p-2 border rounded-lg text-sm" value={ktvForm.pass} onChange={e => setKtvForm({...ktvForm, pass: e.target.value})} placeholder="123456" />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold mb-1">Tỷ lệ % Hoa hồng</label>
-                <input type="number" required className="w-full p-2 border rounded-lg text-sm" value={ktvForm.commission} onChange={e => setKtvForm({...ktvForm, commission: e.target.value})} />
-              </div>
-              <div className="flex justify-end gap-2 pt-2">
-                <button type="button" onClick={() => setShowKtvModal(false)} className="px-4 py-2 border rounded-lg text-sm">Hủy</button>
-                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold">Lưu KTV</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL VẬT TƯ */}
-      {showMatModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <h3 className="text-lg font-bold">Thêm Vật Tư Mới</h3>
-            <form onSubmit={handleSaveMaterial} className="space-y-3">
-              <div>
-                <label className="block text-xs font-semibold mb-1">Tên vật tư</label>
-                <input type="text" required className="w-full p-2 border rounded-lg text-sm" value={matForm.name} onChange={e => setMatForm({...matForm, name: e.target.value})} />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold mb-1">Số lượng nhập ban đầu</label>
-                <input type="number" required className="w-full p-2 border rounded-lg text-sm" value={matForm.quantity} onChange={e => setMatForm({...matForm, quantity: e.target.value})} />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold mb-1">Giá nhập (VNĐ)</label>
-                <input type="number" required className="w-full p-2 border rounded-lg text-sm" value={matForm.importPrice} onChange={e => setMatForm({...matForm, importPrice: e.target.value})} />
-              </div>
-              <div className="flex justify-end gap-2 pt-2">
-                <button type="button" onClick={() => setShowMatModal(false)} className="px-4 py-2 border rounded-lg text-sm">Hủy</button>
-                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold">Thêm Vật Tư</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL BẢO HÀNH */}
-      {showWarrantyModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <h3 className="text-lg font-bold">Tạo Hồ Sơ Bảo Hành</h3>
-            <form onSubmit={handleSaveWarranty} className="space-y-3">
+              <input type="text" required placeholder="Tên thợ" className="w-full p-2.5 border rounded-xl text-xs" value={ktvForm.name} onChange={e => setKtvForm({...ktvForm, name: e.target.value})} />
+              <input type="text" required placeholder="Số điện thoại" className="w-full p-2.5 border rounded-xl text-xs" value={ktvForm.phone} onChange={e => setKtvForm({...ktvForm, phone: e.target.value})} />
               <div className="grid grid-cols-2 gap-2">
-                <input type="text" required placeholder="Mã đơn (VD: QT-2026-001)" className="p-2 border rounded-lg text-xs" value={warrantyForm.orderCode} onChange={e => setWarrantyForm({...warrantyForm, orderCode: e.target.value})} />
-                <input type="text" required placeholder="Tên khách hàng" className="p-2 border rounded-lg text-xs" value={warrantyForm.customerName} onChange={e => setWarrantyForm({...warrantyForm, customerName: e.target.value})} />
+                <input type="text" required placeholder="Tên đăng nhập" className="p-2.5 border rounded-xl text-xs" value={ktvForm.username} onChange={e => setKtvForm({...ktvForm, username: e.target.value})} />
+                <input type="text" required placeholder="Mật khẩu" className="p-2.5 border rounded-xl text-xs" value={ktvForm.pass} onChange={e => setKtvForm({...ktvForm, pass: e.target.value})} />
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <input type="text" required placeholder="SĐT Khách hàng" className="p-2 border rounded-lg text-xs" value={warrantyForm.phone} onChange={e => setWarrantyForm({...warrantyForm, phone: e.target.value})} />
-                <input type="text" required placeholder="Tên thiết bị" className="p-2 border rounded-lg text-xs" value={warrantyForm.device} onChange={e => setWarrantyForm({...warrantyForm, device: e.target.value})} />
+              <div>
+                <label className="text-[10px] text-slate-500 font-bold block mb-0.5">% Hoa hồng được hưởng</label>
+                <input type="number" required className="w-full p-2.5 border rounded-xl text-xs" value={ktvForm.commission} onChange={e => setKtvForm({...ktvForm, commission: e.target.value})} />
               </div>
-              <input type="text" required placeholder="Linh kiện thay thế" className="w-full p-2 border rounded-lg text-xs" value={warrantyForm.replacementPart} onChange={e => setWarrantyForm({...warrantyForm, replacementPart: e.target.value})} />
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-[10px] text-slate-500">Ngày sửa</label>
-                  <input type="date" required className="w-full p-2 border rounded-lg text-xs" value={warrantyForm.repairDate} onChange={e => setWarrantyForm({...warrantyForm, repairDate: e.target.value})} />
-                </div>
-                <div>
-                  <label className="text-[10px] text-slate-500">Hạn bảo hành</label>
-                  <input type="date" required className="w-full p-2 border rounded-lg text-xs" value={warrantyForm.expiryDate} onChange={e => setWarrantyForm({...warrantyForm, expiryDate: e.target.value})} />
-                </div>
-              </div>
-              <textarea placeholder="Ghi chú bảo hành..." className="w-full p-2 border rounded-lg text-xs" value={warrantyForm.note} onChange={e => setWarrantyForm({...warrantyForm, note: e.target.value})} />
-              <div className="flex justify-end gap-2 pt-2">
-                <button type="button" onClick={() => setShowWarrantyModal(false)} className="px-4 py-2 border rounded-lg text-sm">Hủy</button>
-                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold">Lưu Bảo Hành</button>
+              <div className="flex justify-end gap-2 pt-2 border-t">
+                <button type="button" onClick={() => setShowKtvModal(false)} className="px-4 py-2 border rounded-xl text-xs font-bold">Hủy</button>
+                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold">Lưu Thông Tin</button>
               </div>
             </form>
           </div>
